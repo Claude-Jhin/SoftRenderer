@@ -33,7 +33,10 @@ TGAImage::TGAImage(const TGAImage& other)
 
 TGAImage::~TGAImage()
 {
-    delete[] data;
+    if (data)
+    {
+        delete[] data;
+    }
 }
 
 TGAImage& TGAImage::operator=(const TGAImage& other)
@@ -55,8 +58,11 @@ TGAImage& TGAImage::operator=(const TGAImage& other)
 
 bool TGAImage::read_tga_file(const char* filename)
 {
-    delete[] data;
-    data = nullptr;
+    if (data)
+    {
+        delete[] data;
+        data = nullptr;
+    }
 
     ifstream in;
     in.open(filename, ios::binary);
@@ -69,6 +75,30 @@ bool TGAImage::read_tga_file(const char* filename)
 
     TGA_Header header;
     in.read((char*)&header, sizeof(header));
+    if (!in.good())
+    {
+        in.close();
+        cerr << "an error occured while reading the header\n";
+        return false;
+    }
+
+    width = header.width;
+    height = header.height;
+    // bit to byte
+    bytespp = header.bitsperpixel >> 3;
+    if (width <= 0 || height <= 0 || (bytespp != GRAYSCALE && bytespp != RGB && bytespp != RGBA))
+    {
+        in.close();
+        cerr << "bad bpp or width/height value\n";
+        return false;
+    }
+
+    unsigned long nbytes = bytespp * width * height;
+    data = new unsigned char[nbytes];
+    if (3 == header.datatypecode || 2 == header.datatypecode)
+    {
+        in.read((char))
+    }
 
     return true;
 }

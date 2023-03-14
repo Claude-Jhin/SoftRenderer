@@ -2,6 +2,11 @@
 using namespace std;
 
 #pragma pack(push,1)
+/**
+ * \brief The header information in a TGA file includes various parameters that describe the image,
+ * such as its dimensions, color depth, and pixel format.
+ * This information is needed by image processing software to correctly read and interpret the image data.
+ */
 struct TGA_Header
 {
     char idlength;
@@ -16,7 +21,6 @@ struct TGA_Header
     short height;
     char bitsperpixel;
     char imagedescriptor;
-    
 };
 #pragma pack(pop)
 
@@ -68,6 +72,10 @@ struct TGAColor
     }
 
 
+    /**
+     * These variables share the same memory block,
+     * which means when I update the one of them(for example val), the rest two would change the value(struct rgba and raw[4]) 
+     */
     union
     {
         struct
@@ -78,7 +86,10 @@ struct TGAColor
         unsigned char raw[4];
         unsigned int val;
     };
-
+    
+    /**
+     * \brief Bytes assigned per pixel
+     */
     int bytespp;
 };
 
@@ -108,7 +119,7 @@ public:
     bool write_tga_file(const char* filename);
 
     bool flip_horizontally();
-    
+
     bool flip_vertically();
 
     bool scale(int w, int h);
@@ -128,10 +139,9 @@ public:
     void clear();
 
 protected:
+    bool load_rle_data(std::ifstream& in);
+    bool unload_rle_data(std::ofstream& out);
 
-    bool load_rle_data(std::ifstream &in);
-    bool unload_rle_data(std::ofstream &out);
-    
     unsigned char* data;
     int width;
     int height;
