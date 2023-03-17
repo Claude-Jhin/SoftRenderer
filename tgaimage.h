@@ -1,4 +1,6 @@
-﻿#include <fstream>
+﻿#pragma once
+
+#include <fstream>
 using namespace std;
 
 #pragma pack(push,1)
@@ -116,10 +118,18 @@ public:
 
     bool read_tga_file(const char* filename);
 
-    bool write_tga_file(const char* filename);
+    bool write_tga_file(const char* filename, bool rle = true);
 
+    /**
+     * \brief Horizontal Mirror Flip
+     * \return If the operation is successful
+     */
     bool flip_horizontally();
 
+    /**
+     * \brief Vertical Miro Flip
+     * \return If the operation is successful
+     */
     bool flip_vertically();
 
     bool scale(int w, int h);
@@ -139,6 +149,7 @@ public:
     void clear();
 
 protected:
+    // TODO: Dont understand
     bool load_rle_data(std::ifstream& in);
     bool unload_rle_data(std::ofstream& out);
 
