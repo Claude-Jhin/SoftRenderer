@@ -9,6 +9,7 @@ Model::Model(const char* filename)
     : verts_(),
       faces_()
 {
+    // Use istream to read the file
     std::ifstream in;
     in.open(filename, std::ifstream::in);
     if (in.fail())
@@ -17,14 +18,18 @@ Model::Model(const char* filename)
     }
 
     std::string line;
+    // eof - end of file
     while (!in.eof())
     {
         std::getline(in, line);
         std::istringstream iss(line.c_str());
         char trash;
+        // vertex line
         if (!line.compare(0, 2, "v "))
         {
+            // Skip 'v'
             iss >> trash;
+            // Read the vertex data
             Vec3f v;
             for (int i = 0; i < 3; ++i)
             {
@@ -32,11 +37,14 @@ Model::Model(const char* filename)
             }
             verts_.push_back(v);
         }
+        // face line
         else if (!line.compare(0, 2, "f "))
         {
             std::vector<int> f;
             int itrash, idx;
+            // Skip 'f'
             iss >> trash;
+            // faces_ stores the index of vertices  
             while (iss >> idx >> trash >> itrash >> trash >> itrash)
             {
                 idx--;
