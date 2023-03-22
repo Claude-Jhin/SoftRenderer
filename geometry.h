@@ -29,7 +29,7 @@ struct Vec2
 
     inline Vec2<t> operator+(const Vec2<t>& V) const { return Vec2<t>(u + V.u, v + V.v); }
     inline Vec2<t> operator-(const Vec2<t>& V) const { return Vec2<t>(u - V.u, v - V.v); }
-    inline Vec2<t> operator*(float f) const const { return Vec2<t>(u * f, v * f); }
+    inline Vec2<t> operator*(float f) const { return Vec2<t>(u * f, v * f); }
     template <class>
     friend std::ostream& operator<<(std::ostream& s, Vec2<t>& v);
 };

@@ -55,6 +55,12 @@ void DrawLine(Vec2i t0, Vec2i t1, TGAImage& image, TGAColor color)
 
 void DrawTriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage& image, TGAColor color)
 {
+    if ((t0.y == t1.y && t0.y == t2.y)
+        || (t0.x == t1.x && t0.x == t2.x))
+    {
+        return;
+    }
+
     if (t0.y > t1.y)
     {
         std::swap(t0, t1);
@@ -68,15 +74,21 @@ void DrawTriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage& image, TGAColor color)
         std::swap(t1, t2);
     }
     int total_height = t2.y - t0.y;
-    for (int y = t0.y; y <= t1.y; y++)
+
+    for (int i = 0; i < total_height; i++)
     {
-        int segment_height = t1.y - t0.y + 1;
-        float alpha = (float)(y - t0.y) / total_height;
-        float beta = (float)(y - t0.y) / segment_height; // be careful with divisions by zero 
+        bool second_half = i > t1.y - t0.y || t1.y == t0.y;
+        int segment_height = second_half ? t2.y - t1.y : t1.y - t0.y;
+        float alpha = (float)i / total_height;
+        float beta = (float)(i - (second_half ? t1.y - t0.y : 0)) / segment_height;
+        // be careful: with above conditions no division by zero here 
         Vec2i A = t0 + (t2 - t0) * alpha;
-        Vec2i B = t0 + (t1 - t0) * beta;
-        image.set(A.x, y, red);
-        image.set(B.x, y, green);
+        Vec2i B = second_half ? t1 + (t2 - t1) * beta : t0 + (t1 - t0) * beta;
+        if (A.x > B.x) std::swap(A, B);
+        for (int j = A.x; j <= B.x; j++)
+        {
+            image.set(j, t0.y + i, color); // attention, due to int casts t0.y+i != A.y 
+        }
     }
 }
 
@@ -98,8 +110,8 @@ int main(int argc, char* argv[])
     Vec2i t2[3] = {Vec2i(180, 150), Vec2i(120, 160), Vec2i(130, 180)};
 
     DrawTriangle(t0[0], t0[1], t0[2], image, red);
-    DrawTriangle(t1[0], t1[1], t1[2], image, red);
-    DrawTriangle(t2[0], t2[1], t2[2], image, red);
+    DrawTriangle(t1[0], t1[1], t1[2], image, white);
+    DrawTriangle(t2[0], t2[1], t2[2], image, green);
 
     // image.flip_vertically();
     image.write_tga_file("output.tga");
