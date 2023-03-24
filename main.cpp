@@ -53,41 +53,62 @@ void DrawLine(Vec2i t0, Vec2i t1, TGAImage& image, TGAColor color)
     }
 }
 
-void DrawTriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage& image, TGAColor color)
+Vec3f barycentric(Vec2i* pts, Vec2i p)
 {
-    if ((t0.y == t1.y && t0.y == t2.y)
-        || (t0.x == t1.x && t0.x == t2.x))
+    return Vec3f();
+}
+
+bool IsInTriangle(Vec2i* pts, Vec2i p)
+{
+    // Use cross product
+    Vec2i A = {pts[0].x, pts[0].y};
+    Vec2i B = {pts[1].x, pts[1].y};
+    Vec2i C = {pts[2].x, pts[2].y};
+
+    auto getVector = [](Vec2i from, Vec2i to)-> Vec2i
     {
-        return;
+        return {to.x - from.x, to.y - from.y};
+    };
+
+    auto AB = getVector(A, B); 
+    auto BC = getVector(B, C);
+    auto CA = getVector(C,A);
+
+    auto AP = getVector(A,p);
+    auto BP = getVector(B,p);
+    auto CP = getVector(C,p);
+
+    auto d1 = AB ^ AP;
+    auto d2 = BC ^ BP;
+    auto d3 = CA ^ CP;
+
+    return (d1 >= 0 && d2 >= 0 && d3 >= 0)
+        || (d1 <= 0 && d2 <= 0 && d3 <= 0);
+}
+
+void DrawTriangle(Vec2i* pts, TGAImage& image, TGAColor color)
+{
+    Vec2i aabbboxmin(image.get_width() - 1, image.get_height() - 1);
+    Vec2i aabbboxmax(0, 0);
+
+    Vec2i clamp(image.get_width() - 1, image.get_height() - 1);
+    for (int i = 0; i < 3; ++i)
+    {
+        aabbboxmin.x = std::max(0, std::min(pts[i].x, aabbboxmin.x));
+        aabbboxmin.y = std::max(0, std::min(pts[i].y, aabbboxmin.y));
+        aabbboxmax.x = std::min(clamp.x, std::max(pts[i].x, aabbboxmax.x));
+        aabbboxmax.y = std::min(clamp.y, std::max(pts[i].y, aabbboxmax.y));
     }
 
-    if (t0.y > t1.y)
+    Vec2i p;
+    for (p.x = aabbboxmin.x; p.x < aabbboxmax.x; ++p.x)
     {
-        std::swap(t0, t1);
-    }
-    if (t0.y > t2.y)
-    {
-        std::swap(t0, t2);
-    }
-    if (t1.y > t2.y)
-    {
-        std::swap(t1, t2);
-    }
-    int total_height = t2.y - t0.y;
-
-    for (int i = 0; i < total_height; i++)
-    {
-        bool second_half = i > t1.y - t0.y || t1.y == t0.y;
-        int segment_height = second_half ? t2.y - t1.y : t1.y - t0.y;
-        float alpha = (float)i / total_height;
-        float beta = (float)(i - (second_half ? t1.y - t0.y : 0)) / segment_height;
-        // be careful: with above conditions no division by zero here 
-        Vec2i A = t0 + (t2 - t0) * alpha;
-        Vec2i B = second_half ? t1 + (t2 - t1) * beta : t0 + (t1 - t0) * beta;
-        if (A.x > B.x) std::swap(A, B);
-        for (int j = A.x; j <= B.x; j++)
+        for (p.y = aabbboxmin.y; p.y < aabbboxmax.y; ++p.y)
         {
-            image.set(j, t0.y + i, color); // attention, due to int casts t0.y+i != A.y 
+            if (IsInTriangle(pts, p))
+            {
+                image.set(p.x, p.y, color);
+            }
         }
     }
 }
@@ -109,9 +130,9 @@ int main(int argc, char* argv[])
     Vec2i t1[3] = {Vec2i(180, 50), Vec2i(150, 1), Vec2i(70, 180)};
     Vec2i t2[3] = {Vec2i(180, 150), Vec2i(120, 160), Vec2i(130, 180)};
 
-    DrawTriangle(t0[0], t0[1], t0[2], image, red);
-    DrawTriangle(t1[0], t1[1], t1[2], image, white);
-    DrawTriangle(t2[0], t2[1], t2[2], image, green);
+    DrawTriangle(t0, image, red);
+    DrawTriangle(t1, image, white);
+    DrawTriangle(t2, image, green);
 
     // image.flip_vertically();
     image.write_tga_file("output.tga");
