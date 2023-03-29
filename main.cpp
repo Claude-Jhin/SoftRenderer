@@ -201,7 +201,7 @@ int main(int argc, char* argv[])
         Vec3f n = (model->vert(face[2]) - model->vert(face[0])) ^ (model->vert(face[1]) - model->vert(face[0]));
         n.normalize();
 
-        float intensity = n * light_dir;
+        const float intensity = n * light_dir;
         if (intensity > 0)
         {
             DrawTriangle(screen_coords, image, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
