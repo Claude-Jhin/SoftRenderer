@@ -7,7 +7,7 @@ const TGAColor green = TGAColor(0, 255, 0, 255);
 const TGAColor blue = TGAColor(0, 0, 255, 255);
 
 Model* model = nullptr;
-const int width = 600;
+const int width = 800;
 const int height = 600;
 
 // define light direction
@@ -121,22 +121,22 @@ bool IsInTriangle(Vec2i* pts, Vec2i p)
         // u * AB + v * AC + 1 * PA = 0
         Vec3f x(AB.x, CA.x * -1, AP.x * -1);
         Vec3f y(AB.y, CA.y * -1, AP.y * -1);
-        
+
         Vec3f res = x ^ y;
-        
+
         if (abs(res.z) < 1)
         {
             return false;
         }
-        
+
         float u = res.x / res.z;
         float v = res.y / res.z;
-        
+
         if (u < 0 || v < 0 || 1 - u - v < 0)
         {
             return false;
         }
-        
+
         return true;
     }
 }
@@ -168,6 +168,29 @@ void DrawTriangle(Vec2i* pts, TGAImage& image, TGAColor color)
     }
 }
 
+void rasterize(Vec2i p0, Vec2i p1, TGAImage& tga_image, const TGAColor& color, int* ybuffer, int& ymax)
+{
+    if (p0.x > p1.x)
+    {
+        std::swap(p0, p1);
+    }
+
+    for (int x = p0.x; x < p1.x; ++x)
+    {
+        float t = (x - p0.x) / (float)(p1.x - p0.x);
+        int y = p0.y * (1. - t) + p1.y * t;
+        if (ybuffer[x] < y)
+        {
+            ybuffer[x] = y;
+            for (int i = 0; i < 16; ++i)
+            {
+                tga_image.set(x, i, color);
+            }
+            ymax = std::max(ymax, y);
+        }
+    }
+}
+
 int main(int argc, char* argv[])
 {
     if (argc == 2)
@@ -182,7 +205,7 @@ int main(int argc, char* argv[])
     TGAImage scene(width, height, TGAImage::RGB);
 
     // scene "2d mesh"
-    DrawLine(Vec2i(20, 34),   Vec2i(744, 400), scene, red);
+    DrawLine(Vec2i(20, 34), Vec2i(744, 400), scene, red);
     DrawLine(Vec2i(120, 434), Vec2i(444, 400), scene, green);
     DrawLine(Vec2i(330, 463), Vec2i(594, 200), scene, blue);
 
@@ -191,6 +214,34 @@ int main(int argc, char* argv[])
 
     // image.flip_vertically();
     scene.write_tga_file("scene.tga");
+
+    TGAImage render(width, 16, TGAImage::RGB);
+    int ybuffer[width];
+    int ymax = std::numeric_limits<int>::min();
+    for (int i = 0; i < width; ++i)
+    {
+        ybuffer[i] = std::numeric_limits<int>::min();
+    }
+
+    rasterize(Vec2i(20, 34), Vec2i(744, 400), render, red, ybuffer, ymax);
+    rasterize(Vec2i(120, 434), Vec2i(444, 400), render, green, ybuffer, ymax);
+    rasterize(Vec2i(330, 463), Vec2i(594, 200), render, blue, ybuffer, ymax);
+    render.write_tga_file("render.tga");
+
+    TGAImage ybufferImage(width, 16, TGAImage::GRAYSCALE);
+    for (int i = 0; i < width; ++i)
+    {
+        for (int j = 0; j < 16; ++j)
+        {
+            int greyscale = (float)ybuffer[i] / ymax * 255;
+            if (greyscale > 0)
+            {
+                ybufferImage.set(i, j, TGAColor(greyscale, 1));
+            }
+        }
+    }
+    ybufferImage.write_tga_file("ybuffer.tga");
+
     delete model;
     return 0;
 }
