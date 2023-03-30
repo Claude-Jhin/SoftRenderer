@@ -4,10 +4,11 @@
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red = TGAColor(255, 0, 0, 255);
 const TGAColor green = TGAColor(0, 255, 0, 255);
+const TGAColor blue = TGAColor(0, 0, 255, 255);
 
 Model* model = nullptr;
-const int width = 1000;
-const int height = 1000;
+const int width = 600;
+const int height = 600;
 
 // define light direction
 Vec3f light_dir(0, 0, -1);
@@ -178,38 +179,18 @@ int main(int argc, char* argv[])
         model = new Model("obj/african_head.obj");
     }
 
-    TGAImage image(width, height, TGAImage::RGB);
+    TGAImage scene(width, height, TGAImage::RGB);
 
-    // Vec2i t0[3] = {Vec2i(10, 70), Vec2i(50, 160), Vec2i(70, 80)};
-    // Vec2i t1[3] = {Vec2i(180, 50), Vec2i(150, 1), Vec2i(70, 180)};
-    // Vec2i t2[3] = {Vec2i(180, 150), Vec2i(120, 160), Vec2i(130, 180)};
+    // scene "2d mesh"
+    DrawLine(Vec2i(20, 34),   Vec2i(744, 400), scene, red);
+    DrawLine(Vec2i(120, 434), Vec2i(444, 400), scene, green);
+    DrawLine(Vec2i(330, 463), Vec2i(594, 200), scene, blue);
 
-    // DrawTriangle(t0, image, red);
-    // DrawTriangle(t1, image, white);
-    // DrawTriangle(t2, image, green);
-
-    for (int i = 0; i < model->nfaces(); i++)
-    {
-        std::vector<int> face = model->face(i);
-        Vec2i screen_coords[3];
-        for (int j = 0; j < 3; j++)
-        {
-            Vec3f world_coords = model->vert(face[j]);
-            screen_coords[j] = Vec2i((world_coords.x + 1.) * width / 2., (world_coords.y + 1.) * height / 2.);
-        }
-        // Calculate normal
-        Vec3f n = (model->vert(face[2]) - model->vert(face[0])) ^ (model->vert(face[1]) - model->vert(face[0]));
-        n.normalize();
-
-        const float intensity = n * light_dir;
-        if (intensity > 0)
-        {
-            DrawTriangle(screen_coords, image, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
-        }
-    }
+    // screen line
+    DrawLine(Vec2i(10, 10), Vec2i(790, 10), scene, white);
 
     // image.flip_vertically();
-    image.write_tga_file("output.tga");
+    scene.write_tga_file("scene.tga");
     delete model;
     return 0;
 }
