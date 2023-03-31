@@ -7,8 +7,12 @@ const TGAColor green = TGAColor(0, 255, 0, 255);
 const TGAColor blue = TGAColor(0, 0, 255, 255);
 
 Model* model = nullptr;
+
 const int width = 800;
 const int height = 600;
+const int depth = 255;
+
+int* zbuffer = nullptr;
 
 // define light direction
 Vec3f light_dir(0, 0, -1);
@@ -57,9 +61,66 @@ void DrawLine(Vec2i t0, Vec2i t1, TGAImage& image, TGAColor color)
     }
 }
 
+Vec3f barycentric(Vec3i* pts, Vec3i p)
+{
+    // (1 - u - v) * A + u * B + v * C = P
+    // (1 - u - v) * A + u * B + v * C - A = P - A
+    // u * (B - A) + v * (C - A) = P - A
+    // u * AB + v * AC + PA = 0
+    const Vec3i A = pts[0];
+    const Vec3i B = pts[1];
+    const Vec3i C = pts[2];
+
+    const Vec3i AB = B - A;
+    const Vec3i AC = C - A;
+    const Vec3i PA = A - p;
+
+    Vec3f x(AB.x, AC.x, PA.x);
+    Vec3f y(AB.y, AC.y, PA.y);
+
+    Vec3f res = x ^ y;
+
+    if (abs(res.z) < 1)
+    {
+        return Vec3f(-1, 1, 1);
+    }
+
+    float u = res.x / res.z;
+    float v = res.y / res.z;
+    float w = 1.f - (res.x + res.y) / res.z;
+
+    return Vec3f(w, u, v);
+}
+
 Vec3f barycentric(Vec2i* pts, Vec2i p)
 {
-    return Vec3f();
+    // (1 - u - v) * A + u * B + v * C = P
+    // (1 - u - v) * A + u * B + v * C - A = P - A
+    // u * (B - A) + v * (C - A) = P - A
+    // u * AB + v * AC + PA = 0
+    const Vec2i A = pts[0];
+    const Vec2i B = pts[1];
+    const Vec2i C = pts[2];
+
+    const Vec2i AB = B - A;
+    const Vec2i AC = C - A;
+    const Vec2i PA = A - p;
+
+    Vec3f x((float)AB.x, (float)AC.x, (float)PA.x);
+    Vec3f y((float)AB.y, (float)AC.y, (float)PA.y);
+
+    Vec3f res = x ^ y;
+
+    if (abs(res.z) < 1)
+    {
+        return Vec3f(-1, 1, 1);
+    }
+
+    float u = res.x / res.z;
+    float v = res.y / res.z;
+    float w = 1.f - (res.x + res.y) / res.z;
+
+    return Vec3f(w, u, v);
 }
 
 bool IsInTriangle(Vec2i* pts, Vec2i p)
@@ -118,21 +179,9 @@ bool IsInTriangle(Vec2i* pts, Vec2i p)
 
     // Method 3. Use barycentric
     {
-        // u * AB + v * AC + 1 * PA = 0
-        Vec3f x(AB.x, CA.x * -1, AP.x * -1);
-        Vec3f y(AB.y, CA.y * -1, AP.y * -1);
+        auto u = barycentric(pts, p);
 
-        Vec3f res = x ^ y;
-
-        if (abs(res.z) < 1)
-        {
-            return false;
-        }
-
-        float u = res.x / res.z;
-        float v = res.y / res.z;
-
-        if (u < 0 || v < 0 || 1 - u - v < 0)
+        if (u.x < 0 || u.y < 0 || u.z < 0)
         {
             return false;
         }
@@ -164,6 +213,46 @@ void DrawTriangle(Vec2i* pts, TGAImage& image, TGAColor color)
             {
                 image.set(p.x, p.y, color);
             }
+        }
+    }
+}
+
+void DrawTriangleWithZBuffer(Vec3i* pts, int* zbuffer, TGAImage& image, const TGAColor& color)
+{
+    Vec2i aabbboxmin(image.get_width() - 1, image.get_height() - 1);
+    Vec2i aabbboxmax(0, 0);
+
+    Vec2i clamp(image.get_width() - 1, image.get_height() - 1);
+    for (int i = 0; i < 3; ++i)
+    {
+        aabbboxmin.x = std::max(0, std::min(pts[i].x, aabbboxmin.x));
+        aabbboxmin.y = std::max(0, std::min(pts[i].y, aabbboxmin.y));
+        aabbboxmax.x = std::min(clamp.x, std::max(pts[i].x, aabbboxmax.x));
+        aabbboxmax.y = std::min(clamp.y, std::max(pts[i].y, aabbboxmax.y));
+    }
+
+    Vec3i p;
+    for (p.x = aabbboxmin.x; p.x < aabbboxmax.x; ++p.x)
+    {
+        for (p.y = aabbboxmin.y; p.y < aabbboxmax.y; ++p.y)
+        {
+            auto bc_screen = barycentric(pts, p);
+            if (bc_screen.x < 0 || bc_screen.y < 0 || bc_screen.z < 0)
+            {
+                continue;
+            }
+
+            p.z = 0;
+            p.z += pts[0].z * bc_screen.x;
+            p.z += pts[1].z * bc_screen.y;
+            p.z += pts[2].z * bc_screen.z;
+            if (zbuffer[p.x + p.y * image.get_width()] > p.z)
+            {
+                continue;
+            }
+
+            zbuffer[p.x + p.y * image.get_width()] = p.z;
+            image.set(p.x, p.y, color);
         }
     }
 }
@@ -202,45 +291,52 @@ int main(int argc, char* argv[])
         model = new Model("obj/african_head.obj");
     }
 
-    TGAImage scene(width, height, TGAImage::RGB);
-
-    // scene "2d mesh"
-    DrawLine(Vec2i(20, 34), Vec2i(744, 400), scene, red);
-    DrawLine(Vec2i(120, 434), Vec2i(444, 400), scene, green);
-    DrawLine(Vec2i(330, 463), Vec2i(594, 200), scene, blue);
-
-    // screen line
-    DrawLine(Vec2i(10, 10), Vec2i(790, 10), scene, white);
-
-    // image.flip_vertically();
-    scene.write_tga_file("scene.tga");
-
-    TGAImage render(width, 16, TGAImage::RGB);
-    int ybuffer[width];
-    int ymax = std::numeric_limits<int>::min();
-    for (int i = 0; i < width; ++i)
+    zbuffer = new int [width * height];
+    for (int i = 0; i < width * height; ++i)
     {
-        ybuffer[i] = std::numeric_limits<int>::min();
+        zbuffer[i] = std::numeric_limits<int>::min();
     }
 
-    rasterize(Vec2i(20, 34), Vec2i(744, 400), render, red, ybuffer, ymax);
-    rasterize(Vec2i(120, 434), Vec2i(444, 400), render, green, ybuffer, ymax);
-    rasterize(Vec2i(330, 463), Vec2i(594, 200), render, blue, ybuffer, ymax);
-    render.write_tga_file("render.tga");
-
-    TGAImage ybufferImage(width, 16, TGAImage::GRAYSCALE);
-    for (int i = 0; i < width; ++i)
+    TGAImage output(width, height, TGAImage::RGB);
+    for (int i = 0; i < model->nfaces(); ++i)
     {
-        for (int j = 0; j < 16; ++j)
+        std::vector<int> face = model->face(i);
+        Vec3i screen_coords[3];
+        Vec3f world_coords[3];
+        for (int j = 0; j < 3; ++j)
         {
-            int greyscale = (float)ybuffer[i] / ymax * 255;
-            if (greyscale > 0)
-            {
-                ybufferImage.set(i, j, TGAColor(greyscale, 1));
-            }
+            Vec3f vertice = model->vert(face[j]);
+            screen_coords[j] = Vec3i((vertice.x + 1.) * width / 2., (vertice.y + 1.) * height / 2.,
+                                     (vertice.z + 1.) * depth / 2);
+            world_coords[j] = vertice;
+        }
+
+        Vec3f n = (world_coords[2] - world_coords[0]) ^ (world_coords[1] - world_coords[0]);
+        n.normalize();
+        float intensity = n * light_dir;
+        if (intensity > 0)
+        {
+            // DrawTriangle(screen_coords, output, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
+            DrawTriangleWithZBuffer(screen_coords, zbuffer, output,
+                                    TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
         }
     }
-    ybufferImage.write_tga_file("ybuffer.tga");
+
+    output.write_tga_file("output.tga");
+
+    TGAImage depth_image(width, height, TGAImage::RGB);
+
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            depth_image.set(x, y, TGAColor(max(zbuffer[x + y * width] * 255 / depth, 0),
+                                           max(zbuffer[x + y * width] * 255 / depth, 0),
+                                           max(zbuffer[x + y * width] * 255 / depth, 0), 255));
+        }
+    }
+
+    depth_image.write_tga_file("depth.tga");
 
     delete model;
     return 0;
