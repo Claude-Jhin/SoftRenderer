@@ -257,6 +257,49 @@ void DrawTriangleWithZBuffer(Vec3i* pts, int* zbuffer, TGAImage& image, const TG
     }
 }
 
+void DrawTriangleWithZBufferAndTexture(Vec3i* pts, Vec2i* uv, int* zbuffer, TGAImage texture_, TGAImage& image,
+                                       const TGAColor& color)
+{
+    Vec2i aabbboxmin(image.get_width() - 1, image.get_height() - 1);
+    Vec2i aabbboxmax(0, 0);
+
+    Vec2i clamp(image.get_width() - 1, image.get_height() - 1);
+    for (int i = 0; i < 3; ++i)
+    {
+        aabbboxmin.x = std::max(0, std::min(pts[i].x, aabbboxmin.x));
+        aabbboxmin.y = std::max(0, std::min(pts[i].y, aabbboxmin.y));
+        aabbboxmax.x = std::min(clamp.x, std::max(pts[i].x, aabbboxmax.x));
+        aabbboxmax.y = std::min(clamp.y, std::max(pts[i].y, aabbboxmax.y));
+    }
+
+    Vec3i p;
+    for (p.x = aabbboxmin.x; p.x < aabbboxmax.x; ++p.x)
+    {
+        for (p.y = aabbboxmin.y; p.y < aabbboxmax.y; ++p.y)
+        {
+            auto bc_screen = barycentric(pts, p);
+            if (bc_screen.x < 0 || bc_screen.y < 0 || bc_screen.z < 0)
+            {
+                continue;
+            }
+
+            p.z = 0;
+            p.z += pts[0].z * bc_screen.x;
+            p.z += pts[1].z * bc_screen.y;
+            p.z += pts[2].z * bc_screen.z;
+            if (zbuffer[p.x + p.y * image.get_width()] > p.z)
+            {
+                continue;
+            }
+
+            zbuffer[p.x + p.y * image.get_width()] = p.z;
+            TGAColor color = texture_.get(uv[0].x * bc_screen.x + uv[1].x * bc_screen.y + uv[2].x * bc_screen.z,
+                                          uv[0].y * bc_screen.x + uv[1].y * bc_screen.y + uv[2].y * bc_screen.z);
+            image.set(p.x, p.y, color);
+        }
+    }
+}
+
 void rasterize(Vec2i p0, Vec2i p1, TGAImage& tga_image, const TGAColor& color, int* ybuffer, int& ymax)
 {
     if (p0.x > p1.x)
@@ -282,6 +325,7 @@ void rasterize(Vec2i p0, Vec2i p1, TGAImage& tga_image, const TGAColor& color, i
 
 int main(int argc, char* argv[])
 {
+    TGAImage texture;
     if (argc == 2)
     {
         model = new Model(argv[1]);
@@ -289,6 +333,8 @@ int main(int argc, char* argv[])
     else
     {
         model = new Model("obj/african_head.obj");
+        texture.read_tga_file("obj/african_head_diffuse.tga");
+        texture.flip_vertically();
     }
 
     zbuffer = new int [width * height];
@@ -303,12 +349,15 @@ int main(int argc, char* argv[])
         std::vector<int> face = model->face(i);
         Vec3i screen_coords[3];
         Vec3f world_coords[3];
+        Vec2i uv[3];
         for (int j = 0; j < 3; ++j)
         {
             Vec3f vertice = model->vert(face[j]);
             screen_coords[j] = Vec3i((vertice.x + 1.) * width / 2., (vertice.y + 1.) * height / 2.,
                                      (vertice.z + 1.) * depth / 2);
             world_coords[j] = vertice;
+            Vec2f uv_f = model->uv(face[j]);
+            uv[j] = Vec2i(uv_f.x * texture.get_width(), uv_f.y * texture.get_height());
         }
 
         Vec3f n = (world_coords[2] - world_coords[0]) ^ (world_coords[1] - world_coords[0]);
@@ -317,8 +366,8 @@ int main(int argc, char* argv[])
         if (intensity > 0)
         {
             // DrawTriangle(screen_coords, output, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
-            DrawTriangleWithZBuffer(screen_coords, zbuffer, output,
-                                    TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
+            DrawTriangleWithZBufferAndTexture(screen_coords, uv, zbuffer, texture, output,
+                                              TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
         }
     }
 

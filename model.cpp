@@ -7,7 +7,8 @@
 
 Model::Model(const char* filename)
     : verts_(),
-      faces_()
+      faces_(),
+      uv_()
 {
     // Use istream to read the file
     std::ifstream in;
@@ -52,6 +53,17 @@ Model::Model(const char* filename)
             }
             faces_.push_back(f);
         }
+        // uv line
+        else if (!line.compare(0, 2, "vt"))
+        {
+            iss >> trash >> trash;
+            Vec2f uv;
+            for (int i = 0; i < 2; ++i)
+            {
+                iss >> uv.raw[i];
+            }
+            uv_.push_back(uv);
+        }
     }
     std::cerr << "# v# " << verts_.size() << " f# " << faces_.size() << std::endl;
 }
@@ -78,4 +90,9 @@ Vec3f Model::vert(int idx)
 std::vector<int> Model::face(int idx)
 {
     return faces_[idx];
+}
+
+Vec2f Model::uv(int idx)
+{
+    return uv_[idx];
 }
