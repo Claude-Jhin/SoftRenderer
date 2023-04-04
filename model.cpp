@@ -41,15 +41,19 @@ Model::Model(const char* filename)
         // face line
         else if (!line.compare(0, 2, "f "))
         {
-            std::vector<int> f;
-            int itrash, idx;
+            std::vector<Vec3i> f;
+            Vec3i temp;
             // Skip 'f'
             iss >> trash;
             // faces_ stores the index of vertices  
-            while (iss >> idx >> trash >> itrash >> trash >> itrash)
+            while (iss >> temp.raw[0] >> trash >> temp.raw[1] >> trash >> temp.raw[2])
             {
-                idx--;
-                f.push_back(idx);
+                // in wavefront obj all indices start at 1, not zero
+                for (int i = 0; i < 3; ++i)
+                {
+                    temp.raw[i]--;
+                }
+                f.push_back(temp);
             }
             faces_.push_back(f);
         }
@@ -87,8 +91,13 @@ Vec3f Model::vert(int idx)
     return verts_[idx];
 }
 
-std::vector<int> Model::face(int idx)
+std::vector<Vec3i> Model::face(int idx)
 {
+    // std::vector<int> res_face;
+    // for (int i = 0; i < faces_[idx].size(); ++i)
+    // {
+    //     res_face.push_back(faces_[idx][i].ivert);
+    // }
     return faces_[idx];
 }
 
