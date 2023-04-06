@@ -257,7 +257,7 @@ void DrawTriangleWithZBuffer(Vec3i* pts, int* zbuffer, TGAImage& image, const TG
     }
 }
 
-void DrawTriangleWithZBufferAndTexture(Vec3i* pts, Vec2i* uv, int* zbuffer_, TGAImage texture_, TGAImage& image,
+void DrawTriangleWithZBufferAndTexture(Vec3i* pts, Vec2f* uv, int* zbuffer_, TGAImage& image,
                                        float intensity)
 {
     Vec2i aabbboxmin(image.get_width() - 1, image.get_height() - 1);
@@ -293,8 +293,8 @@ void DrawTriangleWithZBufferAndTexture(Vec3i* pts, Vec2i* uv, int* zbuffer_, TGA
             }
 
             zbuffer_[p.x + p.y * image.get_width()] = p.z;
-            Vec2i uvp = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
-            TGAColor color_final = texture_.get(uvp.x, uvp.y);
+            Vec2f uvp = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
+            TGAColor color_final = model->diffuse(uvp);
             image.set(p.x, p.y, TGAColor(color_final.r * intensity, color_final.g * intensity,
                                          color_final.b * intensity, 255));
         }
@@ -326,7 +326,6 @@ void rasterize(Vec2i p0, Vec2i p1, TGAImage& tga_image, const TGAColor& color, i
 
 int main(int argc, char* argv[])
 {
-    TGAImage texture;
     if (argc == 2)
     {
         model = new Model(argv[1]);
@@ -334,8 +333,6 @@ int main(int argc, char* argv[])
     else
     {
         model = new Model("obj/african_head.obj");
-        texture.read_tga_file("obj/african_head_diffuse.tga");
-        texture.flip_vertically();
     }
 
     zbuffer = new int [width * height];
@@ -350,15 +347,14 @@ int main(int argc, char* argv[])
         std::vector<Vec3i> face = model->face(i);
         Vec3i screen_coords[3];
         Vec3f world_coords[3];
-        Vec2i uv[3];
+        Vec2f uv[3];
         for (int j = 0; j < 3; ++j)
         {
             Vec3f vertice = model->vert(face[j].ivert);
             screen_coords[j] = Vec3i((vertice.x + 1.) * width / 2., (vertice.y + 1.) * height / 2.,
                                      (vertice.z + 1.) * depth / 2);
             world_coords[j] = vertice;
-            Vec2f uv_f = model->uv(face[j].iuv);
-            uv[j] = Vec2i(uv_f.x * texture.get_width(), uv_f.y * texture.get_height());
+            uv[j] = model->uv(face[j].iuv);
         }
 
         Vec3f n = (world_coords[2] - world_coords[0]) ^ (world_coords[1] - world_coords[0]);
@@ -367,7 +363,7 @@ int main(int argc, char* argv[])
         if (intensity > 0)
         {
             // DrawTriangle(screen_coords, output, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
-            DrawTriangleWithZBufferAndTexture(screen_coords, uv, zbuffer, texture, output, intensity);
+            DrawTriangleWithZBufferAndTexture(screen_coords, uv, zbuffer, output, intensity);
         }
     }
 
