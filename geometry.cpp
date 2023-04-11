@@ -57,7 +57,7 @@ Matrix Matrix::operator*(const Matrix& a)
     Matrix res(rows, a.rows);
     for (int i = 0; i < rows; ++i)
     {
-        for (int j = 0; j < a.rows; ++j)
+        for (int j = 0; j < a.cols; ++j)
         {
             res.m[i][j] = 0.f;
             for (int k = 0; k < cols; ++k)

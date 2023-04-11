@@ -16,6 +16,7 @@ int* zbuffer = nullptr;
 
 // define light direction
 Vec3f light_dir(0, 0, -1);
+Vec3f camera(0, 0, 3);
 
 void DrawPixel(int x, int y, TGAImage& image, TGAColor color)
 {
@@ -324,6 +325,34 @@ void rasterize(Vec2i p0, Vec2i p1, TGAImage& tga_image, const TGAColor& color, i
     }
 }
 
+Matrix viewport(int x, int y, int w, int h)
+{
+    Matrix m = Matrix::identity(4);
+    m[0][3] = x + w / 2.f;
+    m[1][3] = y + h / 2.f;
+    m[2][3] = depth / 2.f;
+
+    m[0][0] = w / 2.f;
+    m[1][1] = h / 2.f;
+    m[2][2] = depth / 2.f;
+    return m;
+}
+
+Vec3f m2v(Matrix m)
+{
+    return Vec3f(m[0][0] / m[3][0], m[1][0] / m[3][0], m[2][0] / m[3][0]);
+}
+
+Matrix v2m(Vec3f v)
+{
+    Matrix m(4, 1);
+    m[0][0] = v.x;
+    m[1][0] = v.y;
+    m[2][0] = v.z;
+    m[3][0] = 1.f;
+    return m;
+}
+
 int main(int argc, char* argv[])
 {
     if (argc == 2)
@@ -348,11 +377,15 @@ int main(int argc, char* argv[])
         Vec3i screen_coords[3];
         Vec3f world_coords[3];
         Vec2f uv[3];
+
+        Matrix Projection = Matrix::identity(4);
+        Projection[3][2] = -1.f / camera.z;
+        Matrix ViewPort = viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
+
         for (int j = 0; j < 3; ++j)
         {
             Vec3f vertice = model->vert(face[j].ivert);
-            screen_coords[j] = Vec3i((vertice.x + 1.) * width / 2., (vertice.y + 1.) * height / 2.,
-                                     (vertice.z + 1.) * depth / 2);
+            screen_coords[j] = m2v(ViewPort * Projection * v2m(vertice));
             world_coords[j] = vertice;
             uv[j] = model->uv(face[j].iuv);
         }
