@@ -45,7 +45,7 @@ Model::Model(const char* filename)
             Vec3i temp;
             // Skip 'f'
             iss >> trash;
-            // faces_ stores the index of vertices  
+            // faces_ stores the index of vertices, uv, and normal -> Vec3i
             while (iss >> temp.raw[0] >> trash >> temp.raw[1] >> trash >> temp.raw[2])
             {
                 // in wavefront obj all indices start at 1, not zero
@@ -60,6 +60,7 @@ Model::Model(const char* filename)
         // uv line
         else if (!line.compare(0, 2, "vt"))
         {
+            // vt  0.298 0.774 0.000
             iss >> trash >> trash;
             Vec2f uv;
             for (int i = 0; i < 2; ++i)
@@ -67,6 +68,18 @@ Model::Model(const char* filename)
                 iss >> uv.raw[i];
             }
             uv_.push_back(uv);
+        }
+        // normal line
+        else if (!line.compare(0, 2, "vn"))
+        {
+            // vn  0.042 0.469 0.882
+            iss >> trash >> trash;
+            Vec3f n;
+            for (int i = 0; i < 3; ++i)
+            {
+                iss >> n.raw[i];
+            }
+            norm_.push_back(n);
         }
     }
     std::cerr << "# v# " << verts_.size() << " f# " << faces_.size() << std::endl;
@@ -100,6 +113,11 @@ std::vector<Vec3i> Model::face(int idx)
 Vec2f Model::uv(int idx)
 {
     return uv_[idx];
+}
+
+Vec3f Model::norm(int idx)
+{
+    return norm_[idx].normalize();
 }
 
 void Model::load_texture(std::string filename, const char* suffix, TGAImage& img)

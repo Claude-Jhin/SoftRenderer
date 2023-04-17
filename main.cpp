@@ -259,7 +259,7 @@ void DrawTriangleWithZBuffer(Vec3i* pts, int* zbuffer, TGAImage& image, const TG
 }
 
 void DrawTriangleWithZBufferAndTexture(Vec3i* pts, Vec2f* uv, int* zbuffer_, TGAImage& image,
-                                       float intensity)
+                                       float* intensity)
 {
     Vec2i aabbboxmin(image.get_width() - 1, image.get_height() - 1);
     Vec2i aabbboxmax(0, 0);
@@ -295,9 +295,11 @@ void DrawTriangleWithZBufferAndTexture(Vec3i* pts, Vec2f* uv, int* zbuffer_, TGA
 
             zbuffer_[p.x + p.y * image.get_width()] = p.z;
             Vec2f uvp = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
+            float intensityp = intensity[0] * bc_screen.x + intensity[1] * bc_screen.y +
+                               intensity[2] * bc_screen.z; 
             TGAColor color_final = model->diffuse(uvp);
-            image.set(p.x, p.y, TGAColor(color_final.r * intensity, color_final.g * intensity,
-                                         color_final.b * intensity, 255));
+            image.set(p.x, p.y, TGAColor(255 * intensityp,255 * intensityp,
+                                         255* intensityp, 255));
         }
     }
 }
@@ -377,6 +379,7 @@ int main(int argc, char* argv[])
         Vec3i screen_coords[3];
         Vec3f world_coords[3];
         Vec2f uv[3];
+        float intensity[3];
 
         Matrix Projection = Matrix::identity(4);
         Projection[3][2] = -1.f / camera.z;
@@ -388,16 +391,11 @@ int main(int argc, char* argv[])
             screen_coords[j] = m2v(ViewPort * Projection * v2m(vertice));
             world_coords[j] = vertice;
             uv[j] = model->uv(face[j].iuv);
+            intensity[j] = model->norm(face[j].inorm) * light_dir;
         }
 
-        Vec3f n = (world_coords[2] - world_coords[0]) ^ (world_coords[1] - world_coords[0]);
-        n.normalize();
-        float intensity = n * light_dir;
-        if (intensity > 0)
-        {
-            // DrawTriangle(screen_coords, output, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
-            DrawTriangleWithZBufferAndTexture(screen_coords, uv, zbuffer, output, intensity);
-        }
+        // DrawTriangle(screen_coords, output, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
+        DrawTriangleWithZBufferAndTexture(screen_coords, uv, zbuffer, output, intensity);
     }
 
     output.write_tga_file("output.tga");
