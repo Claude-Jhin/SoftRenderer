@@ -15,7 +15,7 @@ const int depth = 255;
 int* zbuffer = nullptr;
 
 // define light direction
-Vec3f light_dir(0, 0, -1);
+Vec3f light_dir(-1, -1, -1);
 Vec3f camera(0, 0, 3);
 
 void DrawPixel(int x, int y, TGAImage& image, TGAColor color)
@@ -296,10 +296,14 @@ void DrawTriangleWithZBufferAndTexture(Vec3i* pts, Vec2f* uv, int* zbuffer_, TGA
             zbuffer_[p.x + p.y * image.get_width()] = p.z;
             Vec2f uvp = uv[0] * bc_screen.x + uv[1] * bc_screen.y + uv[2] * bc_screen.z;
             float intensityp = intensity[0] * bc_screen.x + intensity[1] * bc_screen.y +
-                               intensity[2] * bc_screen.z; 
+                intensity[2] * bc_screen.z;
+            if (intensityp < 0.2f)
+            {
+                intensityp = 0.2f;
+            }
             TGAColor color_final = model->diffuse(uvp);
-            image.set(p.x, p.y, TGAColor(255 * intensityp,255 * intensityp,
-                                         255* intensityp, 255));
+            image.set(p.x, p.y, TGAColor(color_final.r * intensityp, color_final.g * intensityp,
+                                         color_final.b * intensityp, 255));
         }
     }
 }
@@ -391,7 +395,7 @@ int main(int argc, char* argv[])
             screen_coords[j] = m2v(ViewPort * Projection * v2m(vertice));
             world_coords[j] = vertice;
             uv[j] = model->uv(face[j].iuv);
-            intensity[j] = model->norm(face[j].inorm) * light_dir;
+            intensity[j] = model->norm(face[j].inorm) * (light_dir * -1);
         }
 
         // DrawTriangle(screen_coords, output, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
